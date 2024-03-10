@@ -1,6 +1,5 @@
 import pickle
 import numpy as np
-
 from sklearn.svm import SVC
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import Pipeline
@@ -8,52 +7,47 @@ from sklearn.decomposition import PCA
 from sklearn.metrics import accuracy_score
 from sklearn.model_selection import train_test_split
 
-# Read the data
+def load_data(file_path):
+    """Load processed data from a pickle file."""
+    with open(file_path, 'rb') as f:
+        return pickle.load(f)
 
-with open('processed_data.pickle', 'rb') as f:
-    all_parts = pickle.load(f)
-#print(f"Here the results: {all_parts}")
+def prepare_data(data):
+    """Prepare features and labels from the loaded data."""
+    X = [np.array(run["Functional"][0:4]).flatten() for participant in data for run in participant]
+    y = [run["Shape"] for participant in data for run in participant]
+    return X, y
 
+def main():
+    # Load the data
+    all_parts = load_data('processed_data.pickle')
 
-X = [np.array(run["Functional"][0:4]).flatten() for participant in all_parts for run in participant]
-#y = [[run["Shape"], run["Condition"]] for participant in all_parts for run in participant]
-y = [run["Shape"] for participant in all_parts for run in participant]
+    # Prepare the data
+    X, y = prepare_data(all_parts)
 
-print('Here the X', len(X[0]), flush=True)
-print("Here the y", y[0])
+    # Split the data into training and testing sets
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=42)
 
-assert len(X) == len(y), "Something wrong, X and Y have to be the same lenght"
-print(len(X))
-print(len(y))
-# Split the data into Train and test
+    # Define the pipeline for preprocessing and classification
+    pipeline = Pipeline([
+        ('scaler', StandardScaler()),
+        ('pca', PCA(n_components=0.9)),
+        ('classifier', SVC(kernel='linear', class_weight='balanced'))
+    ])
 
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=42)
-print(X_test)
-print(y_train)
+    # Train the classifier
+    print("Training the classifier...")
+    pipeline.fit(X_train, y_train)
 
-from sklearn.neighbors import KNeighborsClassifier
-# Define the classifier.
-print("Defining pipeline")
-p0 = [("StandardScaler", StandardScaler()),
-      ("PCA", PCA(n_components=.9)),
-("SVC", SVC( kernel="linear", class_weight="balanced"))]
+    # Make predictions
+    print("Making predictions...")
+    y_pred = pipeline.predict(X_test)
 
-#NOther Pipeline
-#p1 = [("StandardScaler", StandardScaler()),
-#      ("PCA", PCA(n_components=.9)), ("SVC", SVC(kernel="linear", class_weight="balanced"))]
+    # Calculate accuracy
+    accuracy = accuracy_score(y_test, y_pred)
+    print(f"Accuracy: {accuracy:.2f}")
 
-
-#("SVC", KNeighborsClassifier(3))]
-#("SVC", SVC(kernel="linear", class_weight="balanced"))]
-
-clf = Pipeline(p0)
-
-print("Training the classifier")
-clf.fit(X=X_train, y=y_train)
-
-print("Predicting")
-y_pred = clf.predict(X=X_test)
-
-print(accuracy_score(y_test, y_pred))
+if __name__ == "__main__":
+    main()
 
 
